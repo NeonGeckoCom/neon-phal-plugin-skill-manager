@@ -25,15 +25,16 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import importlib
 import json
 import os
 import shutil
 import sys
 import unittest
-from copy import deepcopy, copy
 
-from importlib import reload
+import pytest
+
 from mock.mock import Mock
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -74,7 +75,7 @@ class SkillUtilsTests(unittest.TestCase):
             shutil.rmtree(SKILL_DIR)
 
     def test_get_remote_entries(self):
-        from neon_core.util.skill_utils import get_remote_entries
+        from neon_phal_plugin_skill_updater.skill_utils import get_remote_entries
         from ovos_skills_manager.session import set_github_token,\
             clear_github_token
         set_github_token(SKILL_CONFIG["neon_token"])
@@ -86,7 +87,7 @@ class SkillUtilsTests(unittest.TestCase):
                             for skill in skills_list))
 
     def test_install_skills_from_list_no_auth(self):
-        from neon_core.util.skill_utils import install_skills_from_list
+        from neon_phal_plugin_skill_updater.skill_utils import install_skills_from_list
         install_skills_from_list(TEST_SKILLS_NO_AUTH, SKILL_CONFIG)
         skill_dirs = [d for d in os.listdir(SKILL_DIR)
                       if os.path.isdir(os.path.join(SKILL_DIR, d))]
@@ -94,7 +95,7 @@ class SkillUtilsTests(unittest.TestCase):
         self.assertIn("alerts.neon.neongeckocom", skill_dirs)
 
     def test_install_skills_from_list_with_auth(self):
-        from neon_core.util.skill_utils import install_skills_from_list
+        from neon_phal_plugin_skill_updater.skill_utils import install_skills_from_list
         install_skills_from_list(TEST_SKILLS_WITH_AUTH, SKILL_CONFIG)
         skill_dirs = [d for d in os.listdir(SKILL_DIR)
                       if os.path.isdir(os.path.join(SKILL_DIR, d))]
@@ -102,7 +103,7 @@ class SkillUtilsTests(unittest.TestCase):
         self.assertIn("i-like-brands.neon.neongeckocom", skill_dirs)
 
     def test_install_skills_default(self):
-        from neon_core.util.skill_utils import install_skills_default,\
+        from neon_phal_plugin_skill_updater.skill_utils import install_skills_default,\
             get_remote_entries
         install_skills_default(SKILL_CONFIG)
         skill_dirs = [d for d in os.listdir(SKILL_DIR) if
@@ -114,7 +115,7 @@ class SkillUtilsTests(unittest.TestCase):
             f"{get_remote_entries(SKILL_CONFIG['default_skills'])}")
 
     def test_install_skills_with_pip(self):
-        from neon_core.util.skill_utils import install_skills_from_list
+        from neon_phal_plugin_skill_updater.skill_utils import install_skills_from_list
         install_skills_from_list(TEST_SKILLS_WITH_PIP, SKILL_CONFIG)
         skill_dirs = [d for d in os.listdir(SKILL_DIR)
                       if os.path.isdir(os.path.join(SKILL_DIR, d))]
@@ -125,7 +126,7 @@ class SkillUtilsTests(unittest.TestCase):
         self.assertEqual(returned, 0)
 
     def test_get_neon_skills_data(self):
-        from neon_core.util.skill_utils import get_neon_skills_data
+        from neon_phal_plugin_skill_updater.skill_utils import get_neon_skills_data
         from ovos_skills_manager.github.utils import normalize_github_url
         neon_skills = get_neon_skills_data()
         self.assertIsInstance(neon_skills, dict)
@@ -135,11 +136,11 @@ class SkillUtilsTests(unittest.TestCase):
                              normalize_github_url(neon_skills[skill]["url"]))
 
     def test_install_local_skills(self):
-        import neon_core.util.skill_utils
-        importlib.reload(neon_core.util.skill_utils)
+        import neon_phal_plugin_skill_updater.skill_utils
+        importlib.reload(neon_phal_plugin_skill_updater.skill_utils)
         install_deps = Mock()
-        neon_core.util.skill_utils._install_skill_dependencies = install_deps
-        install_local_skills = neon_core.util.skill_utils.install_local_skills
+        neon_phal_plugin_skill_updater.skill_utils._install_skill_dependencies = install_deps
+        install_local_skills = neon_phal_plugin_skill_updater.skill_utils.install_local_skills
 
         local_skills_dir = os.path.join(os.path.dirname(__file__),
                                         "local_skills")
@@ -159,9 +160,9 @@ class SkillUtilsTests(unittest.TestCase):
             install_system_deps
         ovos_skills_manager.requirements.pip_install = pip_install
         from ovos_skills_manager.skill_entry import SkillEntry
-        import neon_core.util.skill_utils
-        importlib.reload(neon_core.util.skill_utils)
-        from neon_core.util.skill_utils import _install_skill_dependencies
+        import neon_phal_plugin_skill_updater.skill_utils
+        importlib.reload(neon_phal_plugin_skill_updater.skill_utils)
+        from neon_phal_plugin_skill_updater.skill_utils import _install_skill_dependencies
         local_skills_dir = os.path.join(os.path.dirname(__file__),
                                         "local_skills")
         with open(os.path.join(local_skills_dir,
@@ -189,7 +190,7 @@ class SkillUtilsTests(unittest.TestCase):
         pip_install.assert_called_with(valid_deps)
 
     def test_write_pip_constraints_to_file(self):
-        from neon_core.util.skill_utils import _write_pip_constraints_to_file
+        from neon_phal_plugin_skill_updater.skill_utils import _write_pip_constraints_to_file
         from neon_utils.packaging_utils import get_package_dependencies
         real_deps = get_package_dependencies("neon-core")
         real_deps = [f'{c.split("[")[0]}{c.split("]")[1]}' if '[' in c
@@ -213,11 +214,11 @@ class SkillUtilsTests(unittest.TestCase):
 
     def test_set_osm_constraints_file(self):
         import ovos_skills_manager.requirements
-        from neon_core.util.skill_utils import set_osm_constraints_file
+        from neon_phal_plugin_skill_updater.skill_utils import set_osm_constraints_file
         set_osm_constraints_file(__file__)
         self.assertEqual(ovos_skills_manager.requirements.DEFAULT_CONSTRAINTS,
                          __file__)
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main()
