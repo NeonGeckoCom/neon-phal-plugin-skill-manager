@@ -29,7 +29,7 @@
 from setuptools import setup, find_packages
 from os import path, getenv
 
-PLUGIN_ENTRY_POINT = "neon-phal-plugin-skill-updater=neon_phal_skill_updater:SkillUpdater"
+PLUGIN_ENTRY_POINT = "neon-phal-plugin-skill-updater=neon_phal_plugin_skill_updater:SkillUpdater"
 BASEDIR = path.abspath(path.dirname(__file__))
 
 
