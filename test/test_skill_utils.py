@@ -59,7 +59,7 @@ SKILL_DIR = os.path.join(os.path.dirname(__file__), "test_skills")
 SKILL_CONFIG = {
     "default_skills": "https://raw.githubusercontent.com/NeonGeckoCom/neon_skills/master/skill_lists/"
                       "DEFAULT-SKILLS-DEV",
-    "neon_token": os.environ.get("GITHUB_TOKEN"),
+    "neon_token": os.environ.get("GITHUB_TOKEN", "neon_token"),
     "directory": SKILL_DIR
 }
 
@@ -94,6 +94,7 @@ class SkillUtilsTests(unittest.TestCase):
         self.assertEqual(len(skill_dirs), len(TEST_SKILLS_NO_AUTH))
         self.assertIn("alerts.neon.neongeckocom", skill_dirs)
 
+    @pytest.mark.skip
     def test_install_skills_from_list_with_auth(self):
         from neon_phal_plugin_skill_updater.skill_utils import install_skills_from_list
         install_skills_from_list(TEST_SKILLS_WITH_AUTH, SKILL_CONFIG)
@@ -126,14 +127,14 @@ class SkillUtilsTests(unittest.TestCase):
         self.assertEqual(returned, 0)
 
     def test_get_neon_skills_data(self):
-        from neon_phal_plugin_skill_updater.skill_utils import get_neon_skills_data
+        from neon_phal_plugin_skill_updater.skill_utils import get_skill_metadata
         from ovos_skills_manager.github.utils import normalize_github_url
-        neon_skills = get_neon_skills_data()
-        self.assertIsInstance(neon_skills, dict)
-        for skill in neon_skills:
-            self.assertIsInstance(neon_skills[skill], dict)
+        skills = get_skill_metadata()
+        self.assertIsInstance(skills, dict)
+        for skill in skills:
+            self.assertIsInstance(skills[skill], dict)
             self.assertEqual(skill,
-                             normalize_github_url(neon_skills[skill]["url"]))
+                             normalize_github_url(skills[skill]["url"]))
 
     def test_install_local_skills(self):
         import neon_phal_plugin_skill_updater.skill_utils
@@ -192,18 +193,33 @@ class SkillUtilsTests(unittest.TestCase):
     def test_write_pip_constraints_to_file(self):
         from neon_phal_plugin_skill_updater.skill_utils import _write_pip_constraints_to_file
         from neon_utils.packaging_utils import get_package_dependencies
-        real_deps = get_package_dependencies("neon-core")
+
+        # Test Default ovos-core package
+        real_deps = get_package_dependencies("ovos-core")
         real_deps = [f'{c.split("[")[0]}{c.split("]")[1]}' if '[' in c
                      else c for c in real_deps if '@' not in c]
         test_outfile = os.path.join(os.path.dirname(__file__),
                                     "constraints.txt")
-        _write_pip_constraints_to_file(test_outfile)
+        _write_pip_constraints_to_file(test_outfile,
+                                       "ovos-core")
+        with open(test_outfile) as f:
+            read_deps = f.read().split('\n')
+        self.assertTrue(all((d in read_deps for d in real_deps)))
+
+        # Test override package name
+        real_deps = get_package_dependencies("neon-phal-plugin-skill-updater")
+        real_deps = [f'{c.split("[")[0]}{c.split("]")[1]}' if '[' in c
+                     else c for c in real_deps if '@' not in c]
+        test_outfile = os.path.join(os.path.dirname(__file__),
+                                    "constraints.txt")
+        _write_pip_constraints_to_file(test_outfile,
+                                       "neon-phal-plugin-skill-updater")
         with open(test_outfile) as f:
             read_deps = f.read().split('\n')
         self.assertTrue(all((d in read_deps for d in real_deps)))
 
         try:
-            _write_pip_constraints_to_file()
+            _write_pip_constraints_to_file(package_name="neon-phal-plugin-skill-updater")
             self.assertTrue(os.path.isfile("/etc/mycroft/constraints.txt"))
             with open("/etc/mycroft/constraints.txt") as f:
                 deps = f.read().split('\n')
@@ -214,10 +230,16 @@ class SkillUtilsTests(unittest.TestCase):
 
     def test_set_osm_constraints_file(self):
         import ovos_skills_manager.requirements
-        from neon_phal_plugin_skill_updater.skill_utils import set_osm_constraints_file
+        from neon_phal_plugin_skill_updater.skill_utils import \
+            set_osm_constraints_file
         set_osm_constraints_file(__file__)
         self.assertEqual(ovos_skills_manager.requirements.DEFAULT_CONSTRAINTS,
                          __file__)
+
+    def test_get_pypi_version(self):
+        from neon_phal_plugin_skill_updater.skill_utils import get_pypi_package_versions
+        versions = get_pypi_package_versions("neon-skill-about")
+        self.assertIsInstance(versions, list)
 
 
 if __name__ == '__main__':

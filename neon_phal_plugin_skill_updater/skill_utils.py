@@ -30,6 +30,7 @@ import json
 import os.path
 import re
 from copy import copy
+from distutils.version import StrictVersion
 
 import requests
 
@@ -49,12 +50,12 @@ from ovos_utils.log import LOG
 from ovos_config.config import Configuration
 
 
-def get_neon_skills_data(skill_meta_repository: str =
+def get_skill_metadata(skill_meta_repository: str =
                          "https://github.com/neongeckocom/neon_skills",
-                         branch: str = "master",
-                         repo_metadata_path: str = "skill_metadata") -> dict:
+                       branch: str = "dev",
+                       repo_metadata_path: str = "skill_metadata") -> dict:
     """
-    Get skill data from configured neon_skills repository.
+    Get skill data from configured skills metadata repository.
     :param skill_meta_repository: URL of skills repository containing metadata
     :param branch: branch of repository to checkout
     :param repo_metadata_path: Path to repo directory containing json metadata files
@@ -62,8 +63,8 @@ def get_neon_skills_data(skill_meta_repository: str =
     skills_data = dict()
     temp_download_dir = mkdtemp()
     zip_url = download_url_from_github_url(skill_meta_repository, branch)
-    base_dir = join(temp_download_dir, "neon_skill_meta")
-    download_extract_zip(zip_url, temp_download_dir, "neon_skill_meta.zip", base_dir)
+    base_dir = join(temp_download_dir, "skill_meta")
+    download_extract_zip(zip_url, temp_download_dir, "skill_meta.zip", base_dir)
 
     meta_dir = join(base_dir, repo_metadata_path)
     for entry in listdir(meta_dir):
@@ -74,10 +75,12 @@ def get_neon_skills_data(skill_meta_repository: str =
     return skills_data
 
 
-def _write_pip_constraints_to_file(output_file: str = None):
+def _write_pip_constraints_to_file(output_file: str = None,
+                                   package_name: str = None):
     """
     Writes out a constraints file for OSM to use to prevent broken dependencies
     :param output_file: path to constraints file to write
+    :param package_name: name of core module to get dependencies for
     """
     from neon_utils.packaging_utils import get_package_dependencies
 
@@ -85,8 +88,8 @@ def _write_pip_constraints_to_file(output_file: str = None):
     if not isdir(dirname(output_file)):
         makedirs(dirname(output_file))
 
-    with open(output_file, 'w+') as f:
-        constraints = get_package_dependencies("neon-core")
+    if package_name:
+        constraints = get_package_dependencies(package_name)
         for c in copy(constraints):
             try:
                 constraint = re.split('[^a-zA-Z0-9_-]', c, 1)[0] or c
@@ -95,10 +98,13 @@ def _write_pip_constraints_to_file(output_file: str = None):
                 LOG.warning(f"Ignoring uninstalled dependency: {constraint}")
         constraints = [f'{c.split("[")[0]}{c.split("]")[1]}' if '[' in c
                        else c for c in constraints if '@' not in c]
-        constraints.append('neon-utils>=1.0.0a1')  # TODO: Patching dep. bug
         LOG.debug(f"Got package constraints: {constraints}")
-        f.write('\n'.join(constraints))
-    LOG.info(f"Wrote core constraints to file: {output_file}")
+    else:
+        constraints = None
+    if constraints:
+        with open(output_file, 'w+') as f:
+            f.write('\n'.join(constraints))
+        LOG.info(f"Wrote core constraints to file: {output_file}")
 
 
 def _install_skill_osm(skill_url: str, skill_dir: str, skills_catalog: dict):
@@ -163,33 +169,36 @@ def set_osm_constraints_file(constraints_file: str):
     ovos_skills_manager.requirements.DEFAULT_CONSTRAINTS = constraints_file
 
 
-def install_skills_from_list(skills_to_install: list, config: dict = None):
+def install_skills_from_list(skills_to_install: list,
+                             skills_config: dict = None,
+                             core_package: str = "ovos-core"):
     """
     Installs the passed list of skill URLs and/or PyPI package names
     :param skills_to_install: list of skills to install
-    :param config: optional dict configuration
+    :param skills_config: optional dict configuration
+    :param core_package: str name of core package to use for constraints
     """
-    config = config or Configuration()["skills"]
-    LOG.info(f"extra_directories={config.get('extra_directories')}")
-    LOG.info(f"directory={config.get('directory')}")
-    skill_dir = expanduser(config.get("extra_directories")[0] if
-                           config.get("extra_directories") else
-                           config.get("directory") if config.get("directory")
-                           and config["directory"] != "skills" else
+    skills_config = skills_config or Configuration()["skills"]
+    LOG.info(f"extra_directories={skills_config.get('extra_directories')}")
+    LOG.info(f"directory={skills_config.get('directory')}")
+    skill_dir = expanduser(skills_config.get("extra_directories")[0] if
+                           skills_config.get("extra_directories") else
+                           skills_config.get("directory") if skills_config.get("directory")
+                                                             and skills_config["directory"] != "skills" else
                            join(xdg_data_home(), "neon", "skills"))
     LOG.info(f"skill_dir={skill_dir}")
-    skills_catalog = get_neon_skills_data()
+    skills_catalog = get_skill_metadata()
     token_set = False
-    if config.get("neon_token"):
+    if skills_config.get("neon_token"):
         token_set = True
-        set_github_token(config["neon_token"])
-        LOG.info(f"Added token to request headers: {config.get('neon_token')}")
+        set_github_token(skills_config["neon_token"])
+        LOG.info(f"Added token to request headers: {skills_config.get('neon_token')}")
     try:
-        _write_pip_constraints_to_file()
+        _write_pip_constraints_to_file(package_name=core_package)
         constraints_file = '/etc/mycroft/constraints.txt'
     except PermissionError:
         constraints_file = join(xdg_data_home(), "neon", "constraints.txt")
-        _write_pip_constraints_to_file(constraints_file)
+        _write_pip_constraints_to_file(constraints_file, core_package)
         set_osm_constraints_file(constraints_file)
     for url in skills_to_install:
         if "://" in url and "git+" not in url:
@@ -291,3 +300,16 @@ def install_local_skills(local_skills_dir: str = "/skills") -> list:
             Configuration().get("skills", {}).get("extra_directories", []):
         LOG.error(f"{local_skills_dir} not found in configuration")
     return installed_skills
+
+
+def get_pypi_package_versions(pkg_name: str) -> list:
+    """
+    Get a list of package versions available on PyPI
+    :param pkg_name: package name to search on PyPI
+    :returns: sorted list of available versions on PyPI
+    """
+    url = f"https://pypi.org/pypi/{pkg_name}/json"
+    data = requests.get(url).json()
+    versions = list(data.get("releases", {}).keys())
+    versions.sort(key=StrictVersion)
+    return versions
