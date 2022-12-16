@@ -161,7 +161,7 @@ def _install_skill_pip(skill_package: str, constraints_file: str) -> bool:
 def set_osm_constraints_file(constraints_file: str):
     """
     Sets the DEFAULT_CONSTRAINTS param for OVOS Skills Manager.
-    :param constraints_file: path to valid constraints file for neon-core
+    :param constraints_file: path to valid constraints file for the core
     """
     if not constraints_file:
         raise ValueError("constraints_file not defined")
