@@ -1,0 +1,6 @@
+requests
+ovos_utils~=0.0.26
+neon-utils~=1.1
+ovos-plugin-manager~=0.0.20
+ovos-skills-manager>=0.0.12a1
+ovos-skill-installer~=0.0.5
