@@ -158,15 +158,15 @@ def _install_skill_pip(skill_package: str, constraints_file: str) -> bool:
     return returned == 0
 
 
-def set_osm_constraints_file(constraints_file: str):
-    """
-    Sets the DEFAULT_CONSTRAINTS param for OVOS Skills Manager.
-    :param constraints_file: path to valid constraints file for the core
-    """
-    if not constraints_file:
-        raise ValueError("constraints_file not defined")
-    import ovos_skills_manager.requirements
-    ovos_skills_manager.requirements.DEFAULT_CONSTRAINTS = constraints_file
+# def set_osm_constraints_file(constraints_file: str):
+#     """
+#     Sets the DEFAULT_CONSTRAINTS param for OVOS Skills Manager.
+#     :param constraints_file: path to valid constraints file for the core
+#     """
+#     if not constraints_file:
+#         raise ValueError("constraints_file not defined")
+#     import ovos_skills_manager.requirements
+#     ovos_skills_manager.requirements.DEFAULT_CONSTRAINTS = constraints_file
 
 
 def install_skills_from_list(skills_to_install: list,
@@ -226,22 +226,22 @@ def install_skills_default(config: dict = None):
     clear_github_token()
 
 
-def get_remote_entries(url: str):
-    """
-    Parse a skill list at a given URL
-    :param url: URL of skill list to parse (one skill per line)
-    :returns: list of skills by name, url, and/or ID
-    """
-    r = SESSION.get(url)
-    if not r.ok:
-        LOG.warning(f"Cached response returned: {r.status_code}")
-        SESSION.cache.delete_url(r.url)
-        r = requests.get(url)
-    if r.ok:
-        return [s for s in r.text.split("\n") if s.strip()]
-    else:
-        LOG.error(f"{url} request failed with code: {r.status_code}")
-    return []
+# def get_remote_entries(url: str):
+#     """
+#     Parse a skill list at a given URL
+#     :param url: URL of skill list to parse (one skill per line)
+#     :returns: list of skills by name, url, and/or ID
+#     """
+#     r = SESSION.get(url)
+#     if not r.ok:
+#         LOG.warning(f"Cached response returned: {r.status_code}")
+#         SESSION.cache.delete_url(r.url)
+#         r = requests.get(url)
+#     if r.ok:
+#         return [s for s in r.text.split("\n") if s.strip()]
+#     else:
+#         LOG.error(f"{url} request failed with code: {r.status_code}")
+#     return []
 
 
 def _install_skill_dependencies(skill: SkillEntry):
@@ -302,14 +302,14 @@ def install_local_skills(local_skills_dir: str = "/skills") -> list:
     return installed_skills
 
 
-def get_pypi_package_versions(pkg_name: str) -> list:
-    """
-    Get a list of package versions available on PyPI
-    :param pkg_name: package name to search on PyPI
-    :returns: sorted list of available versions on PyPI
-    """
-    url = f"https://pypi.org/pypi/{pkg_name}/json"
-    data = requests.get(url).json()
-    versions = list(data.get("releases", {}).keys())
-    versions.sort(key=StrictVersion)
-    return versions
+# def get_pypi_package_versions(pkg_name: str) -> list:
+#     """
+#     Get a list of package versions available on PyPI
+#     :param pkg_name: package name to search on PyPI
+#     :returns: sorted list of available versions on PyPI
+#     """
+#     url = f"https://pypi.org/pypi/{pkg_name}/json"
+#     data = requests.get(url).json()
+#     versions = list(data.get("releases", {}).keys())
+#     versions.sort(key=StrictVersion)
+#     return versions
